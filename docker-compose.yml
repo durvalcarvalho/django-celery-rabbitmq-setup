@@ -61,8 +61,7 @@ services:
     build:
       context: .
       dockerfile: ./docker/Dockerfile
-    # command: celery --workdir config/ worker -l info
-    command: celery -A config worker -l INFO
+    command:  ["./scripts/start_celery.sh"]
     volumes:
       - ./src:/src
     env_file:
