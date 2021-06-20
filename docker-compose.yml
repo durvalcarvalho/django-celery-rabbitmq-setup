@@ -1,0 +1,83 @@
+version: "3.7"
+
+services:
+  db-service:
+    image: postgres:13-buster
+    container_name: db-service
+    hostname: db-service
+    # restart: unless-stopped
+    ports:
+      - 5432:5432
+    volumes:
+      - db_postgres_data:/var/lib/postgresql/data
+    env_file:
+      - ./.envs/.postgres
+    networks:
+      - main
+
+
+  rabbitmq-service:
+    container_name: rabbitmq-service
+    hostname: rabbitmq-service
+    image: 'rabbitmq:3.8-rc-management'
+    # restart: always
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    networks:
+      - main
+
+
+  web-service:
+    # restart: always
+    container_name: web-service
+    hostname: web-service
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    command:  ["./scripts/start.sh"]
+    ports:
+      - 8000:8000
+    env_file:
+      - ./.envs/.django
+      - ./.envs/.postgres
+    volumes:
+      - ./src:/src
+      - pip_cache:/usr/local/lib/python3/site-packages
+    depends_on:
+      - db-service
+      - rabbitmq-service
+    networks:
+      - main
+
+
+  celery-service:
+    container_name: celery-service
+    hostname: celery-service
+    # restart: always
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    # command: celery --workdir config/ worker -l info
+    command: celery -A config worker -l INFO
+    volumes:
+      - ./src:/src
+    env_file:
+      - ./.envs/.postgres
+    depends_on:
+      - db-service
+      - rabbitmq-service
+      - web-service
+    networks:
+      - main
+
+
+volumes:
+  db_postgres_data:
+  pip_cache:
+
+networks:
+  main:
